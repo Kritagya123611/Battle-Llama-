@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@keyframes llama-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes llama-drift {
+  0% {
+    left: 110%; /* start off-screen right */
+  }
+  50% {
+    left: -50%; /* move far off-screen left */
+  }
+  100% {
+    left: 110%; /* come back to start */
+  }
+}
+
+/* Combine spin + drift */
+.animate-llama-move {
+  animation:
+    llama-spin 20s linear infinite,
+    llama-drift 60s linear infinite;
+}
