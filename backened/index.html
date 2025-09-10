@@ -1,80 +1,76 @@
-<!DOCTYPE html>
+<!-- index.html - minimal Phaser client -->
+<!doctype html>
 <html>
-  <head>
-    <title>Player Position Test</title>
-    <style>
-      body { font-family: sans-serif; }
-      #game { position: relative; width: 400px; height: 400px; background: #eee; border: 2px solid #333; }
-      .player {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        position: absolute;
-      }
-      .me { background: red; }
-      .other { background: blue; }
-    </style>
-  </head>
-  <body>
-    <h1>Multiplayer Test</h1>
-    <div id="game"></div>
+<head><meta charset="utf-8"><title>Mini Game</title></head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+<script>
+const socket = new WebSocket('ws://localhost:8080');
+let myId = null;
+const players = {}; // id -> sprite data
 
-    <script>
-      const game = document.getElementById("game");
-
-      // My player
-      const me = document.createElement("div");
-      me.className = "player me";
-      game.appendChild(me);
-
-      // Other player
-      const other = document.createElement("div");
-      other.className = "player other";
-      game.appendChild(other);
-
-      let myPos = { x: 50, y: 50 };
-      let otherPos = { x: 200, y: 200 };
-
-      // Position rendering
-      function render() {
-        me.style.left = myPos.x + "px";
-        me.style.top = myPos.y + "px";
-        other.style.left = otherPos.x + "px";
-        other.style.top = otherPos.y + "px";
-      }
-
-      render();
-
-      // WebSocket setup
-      const socket = new WebSocket("ws://localhost:8080");
-
-      socket.onopen = () => console.log("✅ Connected");
-      socket.onmessage = (e) => {
-  let raw = e.data;
-
-  // If server ever sends Blob → convert to text
-  if (raw instanceof Blob) {
-    raw.text().then((txt) => {
-      const data = JSON.parse(txt);
-      otherPos = data;
-      render();
+socket.addEventListener('message', ev => {
+  const msg = JSON.parse(ev.data);
+  if (msg.type === 'welcome') myId = msg.id;
+  if (msg.type === 'snapshot') {
+    // update players
+    msg.players.forEach(p => {
+      players[p.id] = p;
     });
-  } else {
-    const data = JSON.parse(raw);
-    otherPos = data;
-    render();
+  }
+  if (msg.type === 'dead') {
+    alert('You died');
+  }
+});
+
+// Phaser game
+const config = {
+  type: Phaser.AUTO, width: 640, height: 480,
+  scene: {
+    preload() {
+    this.load.image('bg', 'forest.jpg');
+},
+    create() {
+    this.cursors = this.input.keyboard.createCursorKeys();
+
+    // add forest background covering entire canvas
+    const bg = this.add.image(0, 0, 'bg').setOrigin(0, 0);
+    bg.setDisplaySize(this.sys.game.config.width, this.sys.game.config.height);
+
+    this.playerGraphics = this.add.graphics();
+},
+
+    update(time, dt) {
+      // send input at 20Hz (simple throttling)
+      if (!this.lastSend || (time - this.lastSend) > 50) {
+        const input = {
+          type: 'input',
+          seq: Date.now(),
+          up: this.cursors.up.isDown,
+          down: this.cursors.down.isDown,
+          left: this.cursors.left.isDown,
+          right: this.cursors.right.isDown,
+          ts: Date.now()
+        };
+        socket.send(JSON.stringify(input));
+        this.lastSend = time;
+      }
+
+      // draw players
+      this.playerGraphics.clear();
+      for (const id in players) {
+        const p = players[id];
+        // color self differently
+        this.playerGraphics.fillStyle(id === myId ? 0xff0000 : 0x00aa00, 1.0);
+        this.playerGraphics.fillCircle(p.x, p.y, 12);
+        this.playerGraphics.fillStyle(0x000000,1);
+        this.playerGraphics.fillRect(p.x-12, p.y-22, (p.hp/100)*24, 4);
+      }
+    }
   }
 };
-      // Keyboard controls
-      window.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowUp") myPos.y -= 10;
-        if (e.key === "ArrowDown") myPos.y += 10;
-        if (e.key === "ArrowLeft") myPos.x -= 10;
-        if (e.key === "ArrowRight") myPos.x += 10;
 
-        render();
-        socket.send(JSON.stringify(myPos)); // broadcast position
-      });
-    </script>
-  </body>
+const game = new Phaser.Game(config);
+</script>
+</body>
 </html>
