@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Player Position Test</title>
+    <style>
+      body { font-family: sans-serif; }
+      #game { position: relative; width: 400px; height: 400px; background: #eee; border: 2px solid #333; }
+      .player {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        position: absolute;
+      }
+      .me { background: red; }
+      .other { background: blue; }
+    </style>
+  </head>
+  <body>
+    <h1>Multiplayer Test</h1>
+    <div id="game"></div>
+
+    <script>
+      const game = document.getElementById("game");
+
+      // My player
+      const me = document.createElement("div");
+      me.className = "player me";
+      game.appendChild(me);
+
+      // Other player
+      const other = document.createElement("div");
+      other.className = "player other";
+      game.appendChild(other);
+
+      let myPos = { x: 50, y: 50 };
+      let otherPos = { x: 200, y: 200 };
+
+      // Position rendering
+      function render() {
+        me.style.left = myPos.x + "px";
+        me.style.top = myPos.y + "px";
+        other.style.left = otherPos.x + "px";
+        other.style.top = otherPos.y + "px";
+      }
+
+      render();
+
+      // WebSocket setup
+      const socket = new WebSocket("ws://localhost:8080");
+
+      socket.onopen = () => console.log("✅ Connected");
+      socket.onmessage = (e) => {
+  let raw = e.data;
+
+  // If server ever sends Blob → convert to text
+  if (raw instanceof Blob) {
+    raw.text().then((txt) => {
+      const data = JSON.parse(txt);
+      otherPos = data;
+      render();
+    });
+  } else {
+    const data = JSON.parse(raw);
+    otherPos = data;
+    render();
+  }
+};
+      // Keyboard controls
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp") myPos.y -= 10;
+        if (e.key === "ArrowDown") myPos.y += 10;
+        if (e.key === "ArrowLeft") myPos.x -= 10;
+        if (e.key === "ArrowRight") myPos.x += 10;
+
+        render();
+        socket.send(JSON.stringify(myPos)); // broadcast position
+      });
+    </script>
+  </body>
+</html>
