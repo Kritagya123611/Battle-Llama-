@@ -1,4 +1,3 @@
-<!-- index.html - minimal Phaser client -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Mini Game</title></head>
@@ -13,7 +12,6 @@ socket.addEventListener('message', ev => {
   const msg = JSON.parse(ev.data);
   if (msg.type === 'welcome') myId = msg.id;
   if (msg.type === 'snapshot') {
-    // update players
     msg.players.forEach(p => {
       players[p.id] = p;
     });
@@ -25,23 +23,36 @@ socket.addEventListener('message', ev => {
 
 // Phaser game
 const config = {
-  type: Phaser.AUTO, width: 640, height: 480,
+  type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
   scene: {
     preload() {
-    this.load.image('bg', 'forest.jpg');
-},
+      this.load.image('bg', 'forest.jpg');
+    },
+
     create() {
-    this.cursors = this.input.keyboard.createCursorKeys();
+      this.cursors = this.input.keyboard.createCursorKeys();
 
-    // add forest background covering entire canvas
-    const bg = this.add.image(0, 0, 'bg').setOrigin(0, 0);
-    bg.setDisplaySize(this.sys.game.config.width, this.sys.game.config.height);
+      // add forest background covering entire canvas
+      this.bg = this.add.image(0, 0, 'bg').setOrigin(0, 0);
+      this.bg.setDisplaySize(this.sys.game.config.width, this.sys.game.config.height);
 
-    this.playerGraphics = this.add.graphics();
-},
+      this.playerGraphics = this.add.graphics();
+
+      // handle window resize
+      window.addEventListener('resize', () => {
+        this.game.scale.resize(window.innerWidth, window.innerHeight);
+        this.bg.setDisplaySize(window.innerWidth, window.innerHeight);
+      });
+    },
 
     update(time, dt) {
-      // send input at 20Hz (simple throttling)
+      // send input at 20Hz
       if (!this.lastSend || (time - this.lastSend) > 50) {
         const input = {
           type: 'input',
@@ -60,11 +71,10 @@ const config = {
       this.playerGraphics.clear();
       for (const id in players) {
         const p = players[id];
-        // color self differently
         this.playerGraphics.fillStyle(id === myId ? 0xff0000 : 0x00aa00, 1.0);
         this.playerGraphics.fillCircle(p.x, p.y, 12);
-        this.playerGraphics.fillStyle(0x000000,1);
-        this.playerGraphics.fillRect(p.x-12, p.y-22, (p.hp/100)*24, 4);
+        this.playerGraphics.fillStyle(0x000000, 1);
+        this.playerGraphics.fillRect(p.x - 12, p.y - 22, (p.hp / 100) * 24, 4);
       }
     }
   }
